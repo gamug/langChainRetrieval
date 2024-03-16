@@ -8,12 +8,10 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import AzureOpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain.memory import ConversationTokenBufferMemory
-from langchain.chains import RetrievalQA
 from langchain_openai import AzureOpenAI
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
-from langchain.memory import ConversationSummaryBufferMemory
+from langchain.memory import ChatMessageHistory
 
 
 def charge_split(tmp_file_path):
@@ -71,34 +69,26 @@ def set_completion(vectordb):
             api_version=os.environ["OPENAI_API_VERSION"],
             azure_deployment=os.environ["AZURE_GPT_DEPLOY"]
         )
-    template = '''Answer the question based on the following context: {context}
+    template = '''You're an expert designing innovation models applied to social topics. We passs to you as context some useful documents.\n
+                We also provide chat history to more advance interaction with customer.
 
-                You also can find usefull the chat history: {history}
-
+                Context data: {context}
+                Chat history: {history}
                 Question: {query}
 
-                Answer in the following language {language}
+                Provide the answer in {language} language, try to divide in bullets your answer if is worth to answer that way.
                 '''
     prompt = ChatPromptTemplate.from_template(template)
-    memory = ConversationSummaryBufferMemory(llm=llm, return_messages=True, max_token_limit=500)
-    # memory.load_memory_variables({})
+    memory = ChatMessageHistory()
     qa_chain = (
         {
             'context': itemgetter('query') | vectordb.as_retriever(search_kwargs={'k': 7}),
             'query': itemgetter('query'),
             'language': itemgetter('language'),
-            # "history": RunnablePassthrough()
-            'history': RunnablePassthrough.assign(
-                history=RunnableLambda(memory.load_memory_variables) | itemgetter("history"))
+            'history': itemgetter('history')
         }
         | prompt
         | llm
         | StrOutputParser()
     )
-    # qa_chain = RetrievalQA.from_chain_type(
-    #     llm=llm,
-    #     retriever=vectordb.as_retriever(search_kwargs={'k': 7}),
-    #     return_source_documents=True,
-    #     memory=AnswerConversationBufferMemory(llm=llm, return_messages=True, max_token_limit=500)
-    # )
     return qa_chain, memory

@@ -1,0 +1,50 @@
+ - apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: default
+  spec:
+    finalizers:
+      - kubernetes
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: genomatalk
+    namespace: default
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: genomatalk
+    template:
+      metadata:
+        labels:
+          app: genomatalk
+      spec:
+        nodeSelector:
+          kubernetes.io/os: linux
+        containers:
+          - name: genomatalk
+            image: acraccgenai.azurecr.io/genomatalk:latest
+            ports:
+              - containerPort: 3001
+            resources:
+              requests:
+                cpu: 500m
+                memory: 1Gi
+              limits:
+                cpu: '2'
+                memory: 4Gi
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: genomatalk-service
+    namespace: default
+  spec:
+    type: LoadBalancer
+    ports:
+      - targetPort: 3001
+        name: chat
+        port: 3001
+        protocol: TCP
+    selector:
+      app: genomatalk

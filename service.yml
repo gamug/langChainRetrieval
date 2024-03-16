@@ -1,0 +1,70 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: genomatalk-service
+  namespace: default
+  uid: 99be6749-43d0-4266-a8ed-521ebdfa8fc8
+  resourceVersion: '403968'
+  creationTimestamp: '2024-03-16T17:14:15Z'
+  finalizers:
+    - service.kubernetes.io/load-balancer-cleanup
+  managedFields:
+    - manager: Mozilla
+      operation: Update
+      apiVersion: v1
+      time: '2024-03-16T17:14:15Z'
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:spec:
+          f:allocateLoadBalancerNodePorts: {}
+          f:externalTrafficPolicy: {}
+          f:internalTrafficPolicy: {}
+          f:ports:
+            .: {}
+            k:{"port":3001,"protocol":"TCP"}:
+              .: {}
+              f:name: {}
+              f:port: {}
+              f:protocol: {}
+              f:targetPort: {}
+          f:selector: {}
+          f:sessionAffinity: {}
+          f:type: {}
+    - manager: cloud-controller-manager
+      operation: Update
+      apiVersion: v1
+      time: '2024-03-16T17:14:25Z'
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:finalizers:
+            .: {}
+            v:"service.kubernetes.io/load-balancer-cleanup": {}
+        f:status:
+          f:loadBalancer:
+            f:ingress: {}
+      subresource: status
+spec:
+  ports:
+    - name: genomatalk
+      protocol: TCP
+      port: 3001
+      targetPort: 3001
+      nodePort: 31432
+  selector:
+    app: genomatalk
+  clusterIP: 10.0.251.29
+  clusterIPs:
+    - 10.0.251.29
+  type: LoadBalancer
+  sessionAffinity: None
+  externalTrafficPolicy: Cluster
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+  allocateLoadBalancerNodePorts: true
+  internalTrafficPolicy: Cluster
+status:
+  loadBalancer:
+    ingress:
+      - ip: 172.210.122.179

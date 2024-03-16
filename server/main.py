@@ -6,7 +6,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.connections import set_connections
-from server.objects import Documento, Pregunta
+from server.objects import Question
 from src.langchain_utils import (
     process_pdf,
     set_completion,
@@ -21,38 +21,51 @@ vectordb, embedding = conf_vector_db()
 qa_chain, memory = set_completion(vectordb)
 
 @app.get("/")
+
 def index():
     return{"message": "All working well from this side!!"}
 
-@app.post("/procesar-documento/")
-async def procesar_documento(pdf: UploadFile = File(...)):
+@app.post("/process-document/")
+async def process_document(pdf: UploadFile = File(...)):
 
     # Verificamos que el archivo sea un PDF
     if pdf.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="El archivo no es un PDF")
 
     # Leemos el contenido del PDF
-    contenido_pdf = await pdf.read()
+    pdf_content = await pdf.read()
 
     # Procesamos el PDF si no se ha procesado antes
 
-    process_pdf(vectordb, embedding, contenido_pdf)
+    process_pdf(vectordb, embedding, pdf_content)
 
-    return {"mensaje": "Documento PDF procesado exitosamente"}
+    return {"response": "DocumentProcessedSuccessfullyDocumento"}
 
-@app.post("/hacer-pregunta/")
-async def hacer_pregunta(pregunta: Pregunta):
-    pregunta_str = pregunta.pregunta
-    print(pregunta)
+@app.post("/make-question/")
+async def make_question(question: Question):
+    question_str = question.question
+    print(question_str)
 
+    memory.add_user_message(question_str)
     # Hacemos preguntas a ChatGPT
-    respuesta = qa_chain.invoke(
-        {'query': pregunta_str,
-        #  'history': RunnableLambda(memory.load_memory_variables) | itemgetter("history"),
-         'language': 'spanish'}
-    )
-    memory.save_context({'input': pregunta_str}, {'output': respuesta})
-    return {"respuesta": respuesta}
+    answer = qa_chain.invoke({'query': question_str, 'language': 'spanish', 'history': memory.messages})
+
+    memory.add_user_message(answer)
+
+    return {"response": answer}
+
+@app.post("/delete-vectordb/")
+async def delete_vectordb():
+    ids = vectordb.get()['ids']
+    print(ids)
+    vectordb.delete(ids)
+    return {'response': 'VectorDBSuccessfullyCleaned'}
+
+@app.post("/delete-memory/")
+async def delete_vectordb():
+    memory.clear()
+    return {'response': 'MemorySuccessfullyCleaned'}
+
 
 if __name__=='__main__':
     # Configuración de CORS

@@ -69,7 +69,7 @@ async def delete_vectordb():
     return {'response': 'VectorDBSuccessfullyCleaned'}
 
 @app.post("/delete-memory/")
-async def delete_vectordb():
+async def delete_memory():
     ids = memory.get()['ids']
     memory.delete(ids)
     return {'response': 'MemorySuccessfullyCleaned'}

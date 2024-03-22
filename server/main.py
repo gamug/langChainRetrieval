@@ -16,9 +16,17 @@ from src.langchain_utils import (
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_credentials=True,
+    allow_methods=['*'],
+    allow_headers=['*'],
+)
+
 set_connections()
-vectordb, embedding = conf_vector_db()
-qa_chain, memory = set_completion(vectordb)
+vectordb, memory, embedding = conf_vector_db()
+qa_chain = set_completion(vectordb, memory)
 
 @app.get("/")
 
@@ -39,40 +47,29 @@ async def process_document(pdf: UploadFile = File(...)):
 
     process_pdf(vectordb, embedding, pdf_content)
 
-    return {"response": "DocumentProcessedSuccessfullyDocumento"}
+    return {"response": "DocumentProcessedSuccessfully"}
 
 @app.post("/make-question/")
 async def make_question(question: Question):
     question_str = question.question
     print(question_str)
 
-    memory.add_user_message(question_str)
+    memory.add_texts([question_str])
     # Hacemos preguntas a ChatGPT
-    answer = qa_chain.invoke({'query': question_str, 'language': 'spanish', 'history': memory.messages})
+    answer = qa_chain.invoke({'query': question_str, 'language': 'spanish'})
 
-    memory.add_user_message(answer)
+    memory.add_texts([answer])
 
     return {"response": answer}
 
 @app.post("/delete-vectordb/")
 async def delete_vectordb():
     ids = vectordb.get()['ids']
-    print(ids)
     vectordb.delete(ids)
     return {'response': 'VectorDBSuccessfullyCleaned'}
 
 @app.post("/delete-memory/")
 async def delete_vectordb():
-    memory.clear()
+    ids = memory.get()['ids']
+    memory.delete(ids)
     return {'response': 'MemorySuccessfullyCleaned'}
-
-
-if __name__=='__main__':
-    # Configuración de CORS
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["http://localhost:3000"],  # Origen permitido para las solicitudes CORS
-        allow_credentials=True,
-        allow_methods=["GET", "POST"],
-        allow_headers=["*"],
-    )

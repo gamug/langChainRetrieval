@@ -1,3 +1,4 @@
 /data/*
 *.ipynb
 *.pdf
+**/__pycache__/

@@ -2,7 +2,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: genomatalk
-  namespace: default
+  namespace: default-1710610777679
   uid: fe070e89-5479-4209-b178-5f60688d39f9
   resourceVersion: '403941'
   generation: 1

@@ -32,12 +32,18 @@ def conf_vector_db():
             api_key=os.environ["OPENAI_EMBED_API_KEY"]
         )
     vectordb = Chroma(
-        'BID_POC',
-        embedding,
+        collection_name='context',
+        embedding_function=embedding,
         persist_directory='./data'
     )
     vectordb.persist()
-    return vectordb, embedding
+    memory = Chroma(
+        collection_name='memory',
+        embedding_function=embedding,
+        persist_directory='./data'
+    )
+    memory.persist()
+    return vectordb, memory, embedding
 
 def process_pdf(vectordb, embedding, pdf_content):
 
@@ -50,7 +56,7 @@ def process_pdf(vectordb, embedding, pdf_content):
     loader = charge_split(tmp_file_path)
 
     # Configuramos AzureOpenAIEmbeddings y Chroma
-    vectordb = vectordb.from_documents(loader, embedding=embedding, collection_name='BID_POC', persist_directory='./data')
+    vectordb = vectordb.from_documents(loader, embedding=embedding, collection_name='context', persist_directory='./data')
     vectordb.persist()
 
     # Eliminar el archivo temporal
@@ -60,7 +66,7 @@ class AnswerConversationBufferMemory(ConversationTokenBufferMemory):
     def save_context(self, inputs: Dict[str, Any], outputs: Dict[str, str]) -> None:
         return super(AnswerConversationBufferMemory, self).save_context(inputs,{'response': outputs['result']})
     
-def set_completion(vectordb):
+def set_completion(vectordb, memory):
 
     # Configuramos RetrievalQA
     llm = AzureOpenAI(
@@ -70,25 +76,26 @@ def set_completion(vectordb):
             azure_deployment=os.environ["AZURE_GPT_DEPLOY"]
         )
     template = '''You're an expert designing innovation models applied to social topics. We passs to you as context some useful documents.\n
-                We also provide chat history to more advance interaction with customer.
+                We also provide chat history to customer's advanced interactions.
 
                 Context data: {context}
                 Chat history: {history}
                 Question: {query}
 
-                Provide the answer in {language} language, try to divide in bullets your answer if is worth to answer that way.
+                Provide the answer in {language} language.
+                try to divide in bullets your answer if is worth to answer that way, else answer without bullets.
                 '''
     prompt = ChatPromptTemplate.from_template(template)
-    memory = ChatMessageHistory()
+    # memory = ChatMessageHistory()
     qa_chain = (
         {
             'context': itemgetter('query') | vectordb.as_retriever(search_kwargs={'k': 7}),
             'query': itemgetter('query'),
             'language': itemgetter('language'),
-            'history': itemgetter('history')
+            'history': itemgetter('query') | memory.as_retriever(search_kwargs={'k': 7})
         }
         | prompt
         | llm
         | StrOutputParser()
     )
-    return qa_chain, memory
+    return qa_chain

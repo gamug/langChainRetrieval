@@ -1,8 +1,6 @@
 # FROM python:3.10 as requirements-stage
 FROM python:3
 
-# COPY --from=requirements-stage ./requirements.txt /code/requirements.txt
-
 RUN python3 -m pip install certifi
 RUN python3 -m pip install --upgrade pip
 

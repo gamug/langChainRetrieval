@@ -1,7 +1,3 @@
-import sys, re, os
-from operator import itemgetter
-
-from langchain_core.runnables import RunnableLambda
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,7 +5,6 @@ from src.connections import set_connections
 from server.objects import Question
 from src.langchain_utils import (
     process_pdf,
-    set_completion,
     conf_vector_db
 )
 
@@ -25,8 +20,7 @@ app.add_middleware(
 )
 
 set_connections()
-vectordb, memory, embedding = conf_vector_db()
-qa_chain = set_completion(vectordb, memory)
+vectordb = conf_vector_db()
 
 @app.get("/")
 
@@ -36,40 +30,40 @@ def index():
 @app.post("/process-document/")
 async def process_document(pdf: UploadFile = File(...)):
 
-    # Verificamos que el archivo sea un PDF
+    #verifing pdf format in file
     if pdf.content_type != "application/pdf":
-        raise HTTPException(status_code=400, detail="El archivo no es un PDF")
+        raise HTTPException(status_code=400, detail=f"File format not supported: expected <application/pdf> got <{pdf.content_type}>")
 
-    # Leemos el contenido del PDF
+    #reading pdf's content
     pdf_content = await pdf.read()
 
-    # Procesamos el PDF si no se ha procesado antes
-
-    process_pdf(vectordb, embedding, pdf_content)
+    # process pdf (spliting, vectorizing and storing)
+    process_pdf(vectordb, pdf_content)
 
     return {"response": "DocumentProcessedSuccessfully"}
 
 @app.post("/make-question/")
 async def make_question(question: Question):
+
+    #defining basic variables
+    memory = vectordb.get_collection('memory')
     question_str = question.question
     print(question_str)
-
-    memory.add_texts([question_str])
-    # Hacemos preguntas a ChatGPT
-    answer = qa_chain.invoke({'query': question_str, 'language': 'spanish'})
-
-    memory.add_texts([answer])
+    
+    #asking questions to ChatGPT
+    answer = vectordb.qa_chain.invoke({'query': question_str, 'language': 'spanish'})
+    memory.add_texts(['\n\nuser_saids:\n'+question_str, '\n\nyou answer:\n'+answer])
+    memory.persist()
 
     return {"response": answer}
 
-@app.post("/delete-vectordb/")
+@app.post("/delete-context/")
 async def delete_vectordb():
-    ids = vectordb.get()['ids']
-    vectordb.delete(ids)
-    return {'response': 'VectorDBSuccessfullyCleaned'}
+    vectordb.reset_collection('context')
+    return {'response': 'ContextSuccessfullyCleaned'}
 
 @app.post("/delete-memory/")
 async def delete_memory():
-    ids = memory.get()['ids']
-    memory.delete(ids)
+    vectordb.reset_collection('memory')
+
     return {'response': 'MemorySuccessfullyCleaned'}

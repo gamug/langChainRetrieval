@@ -58,12 +58,11 @@ async def make_question(question: Question):
     return {"response": answer}
 
 @app.post("/delete-context/")
-async def delete_vectordb():
+async def delete_context():
     vectordb.reset_collection('context')
     return {'response': 'ContextSuccessfullyCleaned'}
 
 @app.post("/delete-memory/")
 async def delete_memory():
     vectordb.reset_collection('memory')
-
     return {'response': 'MemorySuccessfullyCleaned'}

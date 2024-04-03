@@ -7,10 +7,8 @@ from langchain_openai import AzureOpenAIEmbeddings
 from src.vectordb.chroma import ChromaDb
 
 
-def charge_split(tmp_file_path):
+def charge_split(tmp_file_path, chunk_size, chunk_overlap):
     loader = PyPDFLoader(tmp_file_path)
-    chunk_size = 700 #play with this values to modify the way the text is splitted
-    chunk_overlap = 150 #play with this values to modify the way the text is splitted
     r_splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap
@@ -27,7 +25,7 @@ def conf_vector_db():
     vectordb = ChromaDb(embedding=embedding)
     return vectordb
 
-def process_pdf(vectordb, pdf_content):
+def process_pdf(vectordb, pdf_content, chunk_size, chunk_overlap):
 
     context = vectordb.get_collection('context')
     #save pdf's content in a temporal file
@@ -36,7 +34,7 @@ def process_pdf(vectordb, pdf_content):
         tmp_file_path = tmp_file.name
 
     #split and charge pdf's content
-    loader = charge_split(tmp_file_path)
+    loader = charge_split(tmp_file_path, chunk_size, chunk_overlap)
 
     #uploading AzureOpenAIEmbeddings to ChromaDB
     context.from_documents(

@@ -65,7 +65,7 @@ class ChromaDb:
                     Context data: {context}
                     Chat history: {history}
 
-                    provide the answer to the question {query} in the languange {language}.
+                    provide the answer to the question {query} in the languange {language} and answer based only on the context.
                     '''
         prompt = ChatPromptTemplate.from_template(template)
 

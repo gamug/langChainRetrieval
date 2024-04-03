@@ -1,8 +1,8 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.connections import set_connections
-from server.objects import Question
+from server.objects import Question, SplitParams
 from src.langchain_utils import (
     process_pdf,
     conf_vector_db
@@ -28,7 +28,7 @@ def index():
     return{"message": "All working well from this side!!"}
 
 @app.post("/process-document/")
-async def process_document(pdf: UploadFile = File(...)):
+async def process_document(split_params: SplitParams=Depends(), pdf: UploadFile = File(...)):
 
     #verifing pdf format in file
     if pdf.content_type != "application/pdf":
@@ -38,7 +38,7 @@ async def process_document(pdf: UploadFile = File(...)):
     pdf_content = await pdf.read()
 
     # process pdf (spliting, vectorizing and storing)
-    process_pdf(vectordb, pdf_content)
+    process_pdf(vectordb, pdf_content, split_params.chunk_size, split_params.chunk_overlap)
 
     return {"response": "DocumentProcessedSuccessfully"}
 

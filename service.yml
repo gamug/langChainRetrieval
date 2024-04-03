@@ -2,7 +2,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: genomatalk-service
-  namespace: default-1710610777679
+  namespace: default
   uid: 99be6749-43d0-4266-a8ed-521ebdfa8fc8
   resourceVersion: '403968'
   creationTimestamp: '2024-03-16T17:14:15Z'

@@ -1,5 +1,10 @@
 import chromadb, os, sys
 
+from langchain.retrievers import ContextualCompressionRetriever
+from langchain.retrievers.document_compressors import DocumentCompressorPipeline
+from langchain_community.document_transformers import EmbeddingsRedundantFilter
+from langchain.retrievers.document_compressors import EmbeddingsFilter
+from langchain_text_splitters import CharacterTextSplitter
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.vectorstores import Chroma
@@ -38,10 +43,24 @@ class ChromaDb:
         collections = tuple(self.get_collection(collection) for collection in collections)
         return collections
 
-    def get_retriever(self, collection:str, k:int=7):
-        langchain_chroma = self.get_collection(collection)
-        langchain_chroma = langchain_chroma.as_retriever(search_kwargs={'k': k})
-        return langchain_chroma
+    def format_docs(self, docs):
+        return "\n\n\n- DOC: ".join(doc.page_content for doc in docs)
+
+    def get_retriever(self, collection:str, k:int=7, optimize_rag:bool=False):
+        retriever = self.get_collection(collection)
+        retriever = retriever.as_retriever(search_kwargs={'k': k})
+
+        if optimize_rag:
+            splitter = CharacterTextSplitter(chunk_size=140, chunk_overlap=0, separator=". ")
+            redundant_filter = EmbeddingsRedundantFilter(embeddings=self.embedding)
+            relevant_filter = EmbeddingsFilter(embeddings=self.embedding, similarity_threshold=0.8)
+            pipeline_compressor = DocumentCompressorPipeline(
+                transformers=[splitter, redundant_filter, relevant_filter]
+            )
+            retriever = ContextualCompressionRetriever(
+                base_compressor=pipeline_compressor, base_retriever=retriever
+            )
+        return retriever
 
     def reset_collection(self, collection: str):
         self.validate_collection(collection)
@@ -60,22 +79,22 @@ class ChromaDb:
         
         #providing prompt template 
         template = '''You're an expert designing innovation models applied to social topics. We passs to you as context some useful documents.\n
-                    We also pass chat history to support customer's advanced interactions.
+                    We also provide chat record (memory).
 
-                    Context data: {context}
-                    Chat history: {history}
+                    Context: {context}
+                    Memory: {memory}
 
-                    provide the answer to the question {query} in the languange {language} and answer based only on the context.
+                    Provide the answer to the question {query} in the languange {language} and answer based only on the context.
                     '''
         prompt = ChatPromptTemplate.from_template(template)
 
         #connecting the chain
         qa_chain = (
             {
-                'context': itemgetter('query') | self.get_retriever('context'),
+                'context': itemgetter('query') | self.get_retriever('context', optimize_rag=True) | self.format_docs,
                 'query': itemgetter('query'),
                 'language': itemgetter('language'),
-                'history': itemgetter('query') | self.get_retriever('memory')
+                'memory': itemgetter('query') | self.get_retriever('memory')
             }
             | prompt
             | llm
